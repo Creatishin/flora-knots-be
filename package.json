@@ -1,10 +1,10 @@
 {
-  "name": "flora-knot",
+  "name": "server",
   "version": "1.0.0",
-  "description": "Flora knot",
+  "description": "MERN Ecommerce Server",
   "scripts": {
     "dev": "nodemon",
-    "start": "node index.js",
+    "start": "cross-env NODE_ENV=production node index.js",
     "seed:db": "node utils/seed.js"
   },
   "dependencies": {

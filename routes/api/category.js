@@ -70,25 +70,9 @@ router.post(
 // fetch store categories api
 router.get("/list", async (req, res) => {
   try {
-    const { page = 1, limit = 100 } = req.query;
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const filter = { isActive: true };
-
-    const categories = await Category.find(filter)
-    .skip(skip)
-    .limit(parseInt(limit));
-
-    const total = await Category.countDocuments(filter);
+    const categories = await Category.find({ isActive: true });
     res.status(200).json({
       categories,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(total / limit),
-      }
     });
   } catch (error) {
     res.status(400).json({

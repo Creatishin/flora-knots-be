@@ -1,6 +1,6 @@
-const Mongoose = require('mongoose');
+const Mongoose = require("mongoose");
 
-const { CART_ITEM_STATUS } = require('../constants');
+const { ITEM_STATUS } = require("../constants");
 
 const { Schema } = Mongoose;
 
@@ -8,52 +8,52 @@ const { Schema } = Mongoose;
 const CartItemSchema = new Schema({
   product: {
     type: Schema.Types.ObjectId,
-    ref: 'Product'
+    ref: "Product",
   },
   quantity: Number,
   purchasePrice: {
     type: Number,
-    default: 0
+    default: 0,
   },
   totalPrice: {
     type: Number,
-    default: 0
+    default: 0,
   },
   priceWithTax: {
     type: Number,
-    default: 0
+    default: 0,
   },
   totalTax: {
     type: Number,
-    default: 0
+    default: 0,
   },
   status: {
     type: String,
-    default: CART_ITEM_STATUS.Not_processed,
+    default: ITEM_STATUS.Not_processed,
     enum: [
-      CART_ITEM_STATUS.Not_processed,
-      CART_ITEM_STATUS.Processing,
-      CART_ITEM_STATUS.Shipped,
-      CART_ITEM_STATUS.Delivered,
-      CART_ITEM_STATUS.Cancelled
-    ]
-  }
+      ITEM_STATUS.Not_processed,
+      ITEM_STATUS.Processing,
+      ITEM_STATUS.Shipped,
+      ITEM_STATUS.Delivered,
+      ITEM_STATUS.Cancelled,
+    ],
+  },
 });
 
-module.exports = Mongoose.model('CartItem', CartItemSchema);
+module.exports = Mongoose.model("CartItem", CartItemSchema);
 
 // Cart Schema
 const CartSchema = new Schema({
   products: [CartItemSchema],
   user: {
     type: Schema.Types.ObjectId,
-    ref: 'User'
+    ref: "User",
   },
   updated: Date,
   created: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-module.exports = Mongoose.model('Cart', CartSchema);
+module.exports = Mongoose.model("Cart", CartSchema);

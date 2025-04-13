@@ -1,54 +1,56 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
 // Bring in Models & Utils
-const Cart = require('../../models/cart');
-const Product = require('../../models/product');
-const auth = require('../../middleware/auth');
-const store = require('../../utils/store');
+const Cart = require("../../models/cart");
+const Product = require("../../models/product");
+const auth = require("../../middleware/auth");
+const store = require("../../utils/store");
+const { ROLES } = require("../../constants");
+const role = require("../../middleware/role");
 
-router.post('/add', auth, async (req, res) => {
+router.post("/add", auth, role.check(ROLES.Member), async (req, res) => {
   try {
     const user = req.user._id;
     const items = req.body.products;
 
-    const products = store.caculateItemsSalesTax(items);
+    // const products = store.caculateItemsSalesTax(items);
 
-    const cart = new Cart({
-      user,
-      products
-    });
+    // const cart = new Cart({
+    //   user,
+    //   products,
+    // });
 
-    const cartDoc = await cart.save();
+    // const cartDoc = await cart.save();
 
-    decreaseQuantity(products);
+    // decreaseQuantity(products);
 
     res.status(200).json({
       success: true,
-      cartId: cartDoc.id
+      // cartId: cartDoc.id,
     });
   } catch (error) {
     res.status(400).json({
-      error: 'Your request could not be processed. Please try again.'
+      error: "Your request could not be processed. Please try again.",
     });
   }
 });
 
-router.delete('/delete/:cartId', auth, async (req, res) => {
+router.delete("/delete/:cartId", auth, async (req, res) => {
   try {
     await Cart.deleteOne({ _id: req.params.cartId });
 
     res.status(200).json({
-      success: true
+      success: true,
     });
   } catch (error) {
     res.status(400).json({
-      error: 'Your request could not be processed. Please try again.'
+      error: "Your request could not be processed. Please try again.",
     });
   }
 });
 
-router.post('/add/:cartId', auth, async (req, res) => {
+router.post("/add/:cartId", auth, async (req, res) => {
   try {
     const product = req.body.product;
     const query = { _id: req.params.cartId };
@@ -56,16 +58,16 @@ router.post('/add/:cartId', auth, async (req, res) => {
     await Cart.updateOne(query, { $push: { products: product } }).exec();
 
     res.status(200).json({
-      success: true
+      success: true,
     });
   } catch (error) {
     res.status(400).json({
-      error: 'Your request could not be processed. Please try again.'
+      error: "Your request could not be processed. Please try again.",
     });
   }
 });
 
-router.delete('/delete/:cartId/:productId', auth, async (req, res) => {
+router.delete("/delete/:cartId/:productId", auth, async (req, res) => {
   try {
     const product = { product: req.params.productId };
     const query = { _id: req.params.cartId };
@@ -73,22 +75,22 @@ router.delete('/delete/:cartId/:productId', auth, async (req, res) => {
     await Cart.updateOne(query, { $pull: { products: product } }).exec();
 
     res.status(200).json({
-      success: true
+      success: true,
     });
   } catch (error) {
     res.status(400).json({
-      error: 'Your request could not be processed. Please try again.'
+      error: "Your request could not be processed. Please try again.",
     });
   }
 });
 
-const decreaseQuantity = products => {
-  let bulkOptions = products.map(item => {
+const decreaseQuantity = (products) => {
+  let bulkOptions = products.map((item) => {
     return {
       updateOne: {
         filter: { _id: item.product },
-        update: { $inc: { quantity: -item.quantity } }
-      }
+        update: { $inc: { quantity: -item.quantity } },
+      },
     };
   });
 

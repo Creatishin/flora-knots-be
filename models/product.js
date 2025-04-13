@@ -72,6 +72,15 @@ const ProductSchema = new Schema({
       trim: true,
     },
   },
+  salesCount: {
+    type: Number,
+    default: 0,
+    index: true,
+  },
+  bestSeller: {
+    type: Boolean,
+    default: false,
+  },
   inStock: {
     type: Boolean,
     default: true,
@@ -94,5 +103,9 @@ const ProductSchema = new Schema({
     default: Date.now,
   },
 });
+
+ProductSchema.methods.updateBestSellerStatus = function (threshold = 100) {
+  this.bestSeller = this.salesCount >= threshold;
+};
 
 module.exports = Mongoose.model("Product", ProductSchema);
