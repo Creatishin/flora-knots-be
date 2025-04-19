@@ -39,4 +39,8 @@ module.exports = {
     cdnUrl: process.env.AWS_CDN_URL,
     distributionId: process.env.AWS_DISTRIBUTION_ID,
   },
+  razorpay: {
+    keyId: process.env.RAZOR_PAY_KEY,
+    keySecret: process.env.RAZOR_PAY_SECRET
+  }
 };

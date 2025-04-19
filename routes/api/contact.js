@@ -1,53 +1,44 @@
 const express = require('express');
 const router = express.Router();
-
+const { RateLimiter } = require("../../middleware/rateLimiter");
 // Bring in Models & Helpers
 const Contact = require('../../models/contact');
-const mailgun = require('../../services/mailgun');
 
-router.post('/add', async (req, res) => {
+router.post('/add', RateLimiter, async (req, res) => {
   try {
     const name = req.body.name;
     const email = req.body.email;
-    const message = req.body.message;
+    const phoneNumber = req.body.phoneNumber;
+    const message = req.body.message
 
-    if (!email) {
+    if (!phoneNumber) {
       return res
         .status(400)
-        .json({ error: 'You must enter an email address.' });
+        .json({ error: 'You must enter a phone number.' });
     }
 
     if (!name) {
       return res
         .status(400)
-        .json({ error: 'You must enter description & name.' });
+        .json({ error: 'You must enter your name.' });
     }
 
     if (!message) {
       return res.status(400).json({ error: 'You must enter a message.' });
     }
 
-    const existingContact = await Contact.findOne({ email });
-
-    if (existingContact) {
-      return res
-        .status(400)
-        .json({ error: 'A request already existed for same email address' });
-    }
-
     const contact = new Contact({
       name,
       email,
+      phoneNumber,
       message
     });
 
     const contactDoc = await contact.save();
 
-    await mailgun.sendEmail(email, 'contact');
-
     res.status(200).json({
       success: true,
-      message: `We receved your message, we will reach you on your email address ${email}!`,
+      message: `We will reach you soon!`,
       contact: contactDoc
     });
   } catch (error) {

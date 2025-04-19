@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Mongoose = require("mongoose");
+const Razorpay = require("razorpay")
 
 // Bring in Models & Utils
 const Order = require("../../models/order");
@@ -12,6 +13,7 @@ const store = require("../../utils/store");
 const { ROLES, ITEM_STATUS } = require("../../constants");
 const role = require("../../middleware/role");
 const product = require("../../models/product");
+const keys = require("../../config/keys");
 
 router.post("/add", auth, role.check(ROLES.Member), async (req, res) => {
   try {
@@ -64,54 +66,70 @@ router.post("/add", auth, role.check(ROLES.Member), async (req, res) => {
     }
 
     // Validate payment details
-    if (
-      !paymentDetails ||
-      !paymentDetails.paymentMethod ||
-      !paymentDetails.paymentStatus
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Payment method and status are required" });
-    }
+    // if (
+    //   !paymentDetails ||
+    //   !paymentDetails.paymentMethod ||
+    //   !paymentDetails.paymentStatus
+    // ) {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "Payment method and status are required" });
+    // }
 
     const calculatedTotal =
       total || orderItems.reduce((sum, item) => sum + item.totalPrice, 0);
+
+    const razorpay = new Razorpay({
+      key_id: keys.razorpay.keyId,
+      key_secret: keys.razorpay.keySecret
+    })
+
+    const toalOrder = await Order.countDocuments()
+    const options = {
+      amount: calculatedTotal * 100,
+      currency: "INR",
+      receipt: `#${toalOrder}`,
+      payment_capture: 1
+    }
+
+    const razorpayResponse = await razorpay.orders.create(options)
 
     const newOrder = new Order({
       user,
       orderItems,
       personalizedMessage: personalizedMessage || null,
       shippingDetails,
-      paymentDetails,
+      paymentDetails : {
+        ...paymentDetails,
+        orderId: razorpayResponse.id,
+        paymentStatus: "pending"
+      },
       total: calculatedTotal,
     });
-
+    
     const savedOrder = await newOrder.save();
-
     await Promise.all(
       orderItems.map(async (item) => {
-        // $inc will increment salesCount by item.quantity
-        const updatedProduct = await Product.findByIdAndUpdate(
+        await Product.findByIdAndUpdate(
           item.productId,
           { $inc: { salesCount: item.quantity } },
           { new: true }
         );
 
-        // OPTIONAL: If you want automatic bestSeller logic:
-        if (
-          updatedProduct &&
-          updatedProduct.salesCount >= bestSellerThreshold &&
-          !updatedProduct.bestSeller
-        ) {
-          updatedProduct.bestSeller = true;
-          await updatedProduct.save();
-        }
+        // if (
+        //   updatedProduct &&
+        //   updatedProduct.salesCount >= bestSellerThreshold &&
+        //   !updatedProduct.bestSeller
+        // ) {
+        //   updatedProduct.bestSeller = true;
+        //   await updatedProduct.save();
+        // }
       })
     );
 
     res.status(201).json({
       message: "Order created successfully",
-      order: savedOrder,
+      order: savedOrder
     });
   } catch (error) {
     res.status(400).json({

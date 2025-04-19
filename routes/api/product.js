@@ -86,7 +86,7 @@ router.get("/list/search/:name", async (req, res) => {
 // fetch store products by advanced filters api
 router.get("/list", async (req, res) => {
   try {
-    const { category_id, name, featured, inStock, page = 1, limit = 10, sortBy } = req.query;
+    const { category_id, product_id, name, featured, inStock, page = 1, limit = 10, sortBy } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -107,6 +107,13 @@ router.get("/list", async (req, res) => {
 
       filter.category_id = { $in: categoryIds };
     }
+
+    if(product_id){
+      const productIds = Array.isArray(product_id) ? product_id : product_id.split(",")
+
+      filter._id = { $in: productIds };
+    }
+
     if (name) filter.name = { $regex: name, $options: "i" };
     if (featured !== undefined) filter.featured = featured === "true";
     if (inStock !== undefined) filter.inStock = inStock === "true";

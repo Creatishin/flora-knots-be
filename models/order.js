@@ -31,13 +31,15 @@ const OrderItemSchema = new Schema({
 });
 
 const PaymentDetailsSchema = new Schema({
+  orderId: {
+    type : String,
+    required: true,
+  },
   paymentMethod: {
     type: String,
-    required: true,
   },
   paymentStatus: {
     type: String,
-    required: true,
   },
   transactionDate: {
     type: Date,
