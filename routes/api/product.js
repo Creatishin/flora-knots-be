@@ -246,39 +246,58 @@ router.post(
 router.get(
   "/",
   auth,
-  role.check(ROLES.Admin, ROLES.Merchant),
+  role.check(ROLES.Admin),
   async (req, res) => {
     try {
-      let products = [];
-
-      if (req.user.merchant) {
-        const brands = await Brand.find({
-          merchant: req.user.merchant,
-        }).populate("merchant", "_id");
-
-        const brandId = brands[0]?.["_id"];
-
-        products = await Product.find({})
-          .populate({
-            path: "brand",
-            populate: {
-              path: "merchant",
-              model: "Merchant",
-            },
-          })
-          .where("brand", brandId);
-      } else {
-        products = await Product.find({}).populate({
-          path: "brand",
-          populate: {
-            path: "merchant",
-            model: "Merchant",
-          },
-        });
+      const { category_id, product_id, name, featured, inStock, page = 1, limit = 10, sortBy } = req.query;
+  
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+  
+      const filter = { };
+      let sortOption = { created: -1 };
+      if (sortBy === 'price_high_to_low') {
+        sortOption = { price: -1 };
+      } else if (sortBy === 'price_low_to_high') {
+        sortOption = { price: 1 };
+      } else if (sortBy === 'sales_high_to_low'){
+        sortOption = { salesCount: -1 };
+      } else if (sortBy === 'sales_low_to_high'){
+        sortOption = { salesCount: 1 };
       }
-
+  
+      if (category_id) {
+        const categoryIds = Array.isArray(category_id)
+          ? category_id
+          : category_id.split(','); // support comma-separated string
+  
+        filter.category_id = { $in: categoryIds };
+      }
+  
+      if(product_id){
+        const productIds = Array.isArray(product_id) ? product_id : product_id.split(",")
+  
+        filter._id = { $in: productIds };
+      }
+  
+      if (name) filter.name = { $regex: name, $options: "i" };
+      if (featured !== undefined) filter.featured = featured === "true";
+      if (inStock !== undefined) filter.inStock = inStock === "true";
+  
+      let products = await Product.find(filter)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort(sortOption).populate("category_id");
+      
+      const total = await Product.countDocuments(filter);
+  
       res.status(200).json({
         products,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: Math.ceil(total / limit),
+        }
       });
     } catch (error) {
       res.status(400).json({

@@ -10,7 +10,7 @@ const Product = require("../../models/product");
 const auth = require("../../middleware/auth");
 const mailgun = require("../../services/mailgun");
 const store = require("../../utils/store");
-const { ROLES, ITEM_STATUS } = require("../../constants");
+const { ROLES, ITEM_STATUS, PAYMENT_STATUS } = require("../../constants");
 const role = require("../../middleware/role");
 const product = require("../../models/product");
 const keys = require("../../config/keys");
@@ -102,7 +102,7 @@ router.post("/add", auth, role.check(ROLES.Member), async (req, res) => {
       paymentDetails : {
         ...paymentDetails,
         orderId: razorpayResponse.id,
-        paymentStatus: "pending"
+        paymentStatus: "Pending"
       },
       total: calculatedTotal,
     });
@@ -156,7 +156,7 @@ router.get("/", auth, async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .populate({
-        path: "orderItems.productId",
+        path: "orderItems._id",
       })
       .exec();
 
@@ -266,6 +266,33 @@ router.post("/cancel/:orderId", auth, async (req, res) => {
     });
   }
 });
+
+router.put(
+  "/paymentStatus/:orderId",
+  auth,
+  role.check(ROLES.Member),
+  async (req, res) => {
+    try {
+      const orderId = req.params.orderId;
+      const filter = { _id: orderId };
+
+      const status = req.body.paymentStatus || PAYMENT_STATUS.Pending;
+
+      if (status !== PAYMENT_STATUS.Pending) {
+        await Order.findByIdAndUpdate(filter, { 'paymentDetails.paymentStatus': status });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Order status has been updated successfully!",
+      });
+    } catch (error) {
+      res.status(400).json({
+        error: "Your request could not be processed. Please try again.",
+      });
+    }
+  }
+);
 
 router.put(
   "/status/:orderId",

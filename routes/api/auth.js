@@ -11,7 +11,8 @@ const auth = require("../../middleware/auth");
 const User = require("../../models/user");
 const mailchimp = require("../../services/mailchimp");
 const keys = require("../../config/keys");
-const { EMAIL_PROVIDER } = require("../../constants");
+const { EMAIL_PROVIDER, ROLES } = require("../../constants");
+const role = require("../../middleware/role");
 
 const { secret, tokenLife } = keys.jwt;
 
@@ -28,7 +29,69 @@ router.post("/login", async (req, res) => {
     }
 
     const user = await User.findOne({ phoneNumber });
-    if (!user) {
+    if (!user || user.role === ROLES.Admin) {
+      return res
+        .status(400)
+        .send({ error: "No user found for this phone number." });
+    }
+
+    if (user && user.provider !== EMAIL_PROVIDER.Email) {
+      return res.status(400).send({
+        error: `That email address is already in use using ${user.provider} provider.`,
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        error: "Password Incorrect",
+      });
+    }
+
+    const payload = {
+      id: user.id,
+      role: user.role,
+    };
+
+    const token = jwt.sign(payload, secret, { expiresIn: tokenLife });
+
+    if (!token) {
+      throw new Error();
+    }
+
+    res.status(200).json({
+      success: true,
+      token: `Bearer ${token}`,
+      user: {
+        phoneNumber: user.phoneNumber,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      },
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: "Your request could not be processed. Please try again.",
+    });
+  }
+});
+
+router.post("/admin/login", async (req, res) => {
+  try {
+    const { phoneNumber, password } = req.body;
+
+    if (!phoneNumber) {
+      return res.status(400).json({ error: "You must enter phone number." });
+    }
+
+    if (!password) {
+      return res.status(400).json({ error: "You must enter a password." });
+    }
+
+    const user = await User.findOne({ phoneNumber });
+    if (!user || user.role === ROLES.Member) {
       return res
         .status(400)
         .send({ error: "No user found for this phone number." });

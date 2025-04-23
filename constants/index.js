@@ -10,6 +10,12 @@ exports.MERCHANT_STATUS = {
   Waiting_Approval: "Waiting Approval",
 };
 
+exports.PAYMENT_STATUS = {
+  Pending: "Pending",
+  Success: "Success",
+  Failed: "Failed"
+};
+
 exports.ITEM_STATUS = {
   Processing: "Processing",
   Shipped: "Shipped",

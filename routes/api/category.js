@@ -70,6 +70,8 @@ router.post(
 // fetch store categories api
 router.get("/list", async (req, res) => {
   try {
+    
+
     const categories = await Category.find({ isActive: true });
     res.status(200).json({
       categories,
@@ -84,9 +86,29 @@ router.get("/list", async (req, res) => {
 // fetch categories api
 router.get("/", auth, role.check(ROLES.Admin), async (req, res) => {
   try {
-    const categories = await Category.find({});
+    const { name, isActive, page = 1, limit = 10 } = req.query;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const filter = {};
+
+    if (name) filter.name = { $regex: name, $options: "i" };
+    if (isActive !== undefined) filter.isActive = isActive;
+
+    const categories = await Category.find(filter)
+    .skip(skip)
+    .limit(parseInt(limit));
+
+    const total = await Category.countDocuments(filter);
+
     res.status(200).json({
       categories,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / limit),
+      }
     });
   } catch (error) {
     res.status(400).json({
@@ -100,10 +122,7 @@ router.get("/:id", async (req, res) => {
   try {
     const categoryId = req.params.id;
 
-    const categoryDoc = await Category.findOne({ _id: categoryId }).populate({
-      path: "products",
-      select: "name",
-    });
+    const categoryDoc = await Category.findOne({ _id: categoryId })
 
     if (!categoryDoc) {
       return res.status(404).json({
@@ -132,16 +151,7 @@ router.put(
       const categoryId = req.params.id;
       const update = req.body;
       const query = { _id: categoryId };
-      const { slug } = req.body;
       const compressedImage = req.compressedImage;
-
-      const foundCategory = await Category.findOne({
-        $or: [{ slug }],
-      });
-
-      if (foundCategory && foundCategory._id != categoryId) {
-        return res.status(400).json({ error: "Slug is already in use." });
-      }
 
       const category = await Category.findOne(query);
       if (!category) {
@@ -187,14 +197,13 @@ router.put("/:id/active", auth, role.check(ROLES.Admin), async (req, res) => {
     const query = { _id: categoryId };
 
     // disable category(categoryId) products
-    if (!update.isActive) {
-      const categoryDoc = await Category.findOne(
-        { _id: categoryId, isActive: true },
-        "products -_id"
-      ).populate("products");
+    // if (!update.isActive) {
+    //   const categoryDoc = await Category.findOne(
+    //     { _id: categoryId, isActive: true }
+    //   ).populate("products");
 
-      store.disableProducts(categoryDoc.products);
-    }
+    //   store.disableProducts(categoryDoc.products);
+    // }
 
     await Category.findOneAndUpdate(query, update, {
       new: true,
