@@ -10,7 +10,7 @@ const Category = require("../../models/category");
 const auth = require("../../middleware/auth");
 const role = require("../../middleware/role");
 const checkAuth = require("../../utils/auth");
-const { s3Upload } = require("../../utils/storage");
+const { s3Upload, s3Delete, s3Invalidate } = require("../../utils/storage");
 const {
   getStoreProductsQuery,
   getStoreProductsWishListQuery,
@@ -387,21 +387,20 @@ router.put(
   async (req, res) => {
     try {
       const productId = req.params.id;
-      const update = req.body.product;
+      const {heroImage, images, ...update} = req.body.product;
       const query = { _id: productId };
-      const { sku, slug } = req.body.product;
 
-      const foundProduct = await Product.findOne({
-        $or: [{ slug }, { sku }],
-      });
+      const postData = {heroImage, images, ...update}
 
-      if (foundProduct && foundProduct._id != productId) {
-        return res
-          .status(400)
-          .json({ error: "Sku or slug is already in use." });
+      if(heroImage.length && heroImage.length !== 2){
+        return res.status(400).json({ error: "Please provide 2 hero images." });
       }
 
-      await Product.findOneAndUpdate(query, update, {
+      if(images.length && images.length > 5){
+        return res.status(400).json({ error: "Please provide maximum 5 image." });
+      }
+
+      await Product.findOneAndUpdate(query, postData, {
         new: true,
       });
 
@@ -446,10 +445,28 @@ router.put(
 router.delete(
   "/delete/:id",
   auth,
-  role.check(ROLES.Admin, ROLES.Merchant),
+  role.check(ROLES.Admin),
   async (req, res) => {
     try {
-      const product = await Product.deleteOne({ _id: req.params.id });
+      const product = await Product.findOne({ _id: req.params.id });
+      if (!product) {
+        return res.status(404).json({ error: "Product not found." });
+      }
+      await Product.deleteOne({ _id: req.params.id });
+
+      if (product.images?.imageKey) {
+        product.images.imageKey.map(imageKey => {
+          s3Delete(imageKey);
+          s3Invalidate(imageKey);
+        })
+      }
+
+      if (product.heroImage?.imageKey) {
+        product.heroImage.imageKey.map(imageKey => {
+          s3Delete(imageKey);
+          s3Invalidate(imageKey);
+        })
+      }
 
       res.status(200).json({
         success: true,

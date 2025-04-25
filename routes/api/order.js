@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Mongoose = require("mongoose");
-const Razorpay = require("razorpay")
+const Razorpay = require("razorpay");
 
 // Bring in Models & Utils
 const Order = require("../../models/order");
@@ -14,6 +14,7 @@ const { ROLES, ITEM_STATUS, PAYMENT_STATUS } = require("../../constants");
 const role = require("../../middleware/role");
 const product = require("../../models/product");
 const keys = require("../../config/keys");
+const mongoose = require("mongoose");
 
 router.post("/add", auth, role.check(ROLES.Member), async (req, res) => {
   try {
@@ -81,32 +82,32 @@ router.post("/add", auth, role.check(ROLES.Member), async (req, res) => {
 
     const razorpay = new Razorpay({
       key_id: keys.razorpay.keyId,
-      key_secret: keys.razorpay.keySecret
-    })
+      key_secret: keys.razorpay.keySecret,
+    });
 
-    const toalOrder = await Order.countDocuments()
+    const toalOrder = await Order.countDocuments();
     const options = {
       amount: calculatedTotal * 100,
       currency: "INR",
       receipt: `#${toalOrder}`,
-      payment_capture: 1
-    }
+      payment_capture: 1,
+    };
 
-    const razorpayResponse = await razorpay.orders.create(options)
+    const razorpayResponse = await razorpay.orders.create(options);
 
     const newOrder = new Order({
       user,
       orderItems,
       personalizedMessage: personalizedMessage || null,
       shippingDetails,
-      paymentDetails : {
+      paymentDetails: {
         ...paymentDetails,
         orderId: razorpayResponse.id,
-        paymentStatus: "Pending"
+        paymentStatus: "Pending",
       },
       total: calculatedTotal,
     });
-    
+
     const savedOrder = await newOrder.save();
     await Promise.all(
       orderItems.map(async (item) => {
@@ -129,7 +130,7 @@ router.post("/add", auth, role.check(ROLES.Member), async (req, res) => {
 
     res.status(201).json({
       message: "Order created successfully",
-      order: savedOrder
+      order: savedOrder,
     });
   } catch (error) {
     res.status(400).json({
@@ -141,7 +142,7 @@ router.post("/add", auth, role.check(ROLES.Member), async (req, res) => {
 // fetch orders api
 router.get("/", auth, async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, id } = req.query;
 
     const user = req.user;
 
@@ -149,6 +150,14 @@ router.get("/", auth, async (req, res) => {
 
     if (user.role === ROLES.Member) {
       userFilter.user = user._id;
+    }
+
+    if (id) {
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        userFilter._id = id; // Direct match
+      } else {
+        return res.status(400).json({ error: "Invalid ID format" });
+      }
     }
 
     const ordersDoc = await Order.find(userFilter)
@@ -240,20 +249,11 @@ router.post("/cancel/:orderId", auth, async (req, res) => {
 
     await Promise.all(
       order.orderItems.map(async (item) => {
-        const updatedProduct = await Product.findByIdAndUpdate(
+        await Product.findByIdAndUpdate(
           item.productId,
           { $inc: { salesCount: -item.quantity } },
           { new: true }
         );
-        // OPTIONAL: If you want automatic bestSeller logic:
-        if (
-          updatedProduct &&
-          updatedProduct.salesCount < bestSellerThreshold &&
-          updatedProduct.bestSeller
-        ) {
-          updatedProduct.bestSeller = false;
-          await updatedProduct.save();
-        }
       })
     );
 
@@ -279,7 +279,9 @@ router.put(
       const status = req.body.paymentStatus || PAYMENT_STATUS.Pending;
 
       if (status !== PAYMENT_STATUS.Pending) {
-        await Order.findByIdAndUpdate(filter, { 'paymentDetails.paymentStatus': status });
+        await Order.findByIdAndUpdate(filter, {
+          "paymentDetails.paymentStatus": status,
+        });
       }
 
       res.status(200).json({
@@ -320,5 +322,46 @@ router.put(
     }
   }
 );
+
+router.put("/:orderId", auth, role.check(ROLES.Admin), async (req, res) => {
+  try {
+    const orderId = req.params.orderId;
+    const filter = { _id: orderId };
+
+    const order = await Order.findById(filter);
+
+    if (!order) {
+      return res.status(400).json({
+        error: "Order not found.",
+      });
+    }
+
+    const status = req.body.status || ITEM_STATUS.Cancelled;
+    const trackingNumber = req.body.trackingNumber;
+    const carrier = req.body.carrier;
+
+    const updateFields = {
+      status,
+      shippingDetails: {
+        ...order.shippingDetails.toObject(), // <-- VERY IMPORTANT
+        carrier,
+        trackingNumber,
+      },
+    };
+
+    await Order.findByIdAndUpdate(filter, updateFields, { new: true });
+
+    res.status(200).json({
+      success: true,
+      message: "Item status has been updated successfully!",
+    });
+  } catch (error) {
+    console.error(error); // Always log the real error to debug faster
+    res.status(400).json({
+      error: "Your request could not be processed. Please try again.",
+    });
+  }
+});
+
 
 module.exports = router;

@@ -13,6 +13,7 @@ const cartRoutes = require('./cart');
 const orderRoutes = require('./order');
 const reviewRoutes = require('./review');
 const wishlistRoutes = require('./wishlist');
+const testimonyRoutes = require('./testimony');
 
 // auth routes
 router.use('/auth', authRoutes);
@@ -28,6 +29,9 @@ router.use('/newsletter', newsletterRoutes);
 
 // product routes
 router.use('/product', productRoutes);
+
+// testimony routes
+router.use('/testimony', testimonyRoutes);
 
 // category routes
 router.use('/category', categoryRoutes);
