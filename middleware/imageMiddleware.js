@@ -19,10 +19,19 @@ const compressAndSaveImage = async (req, res, next) => {
   try {
     if (!req.file) return next();
 
+    let width = 1440;
+    let height = 1080;
+
+    // If the request path is /testimony (or includes it)
+    if (req.originalUrl.includes("/testimony")) {
+      width = 720;
+      height = 1280;
+    }
+
     const compressedBuffer = await sharp(req.file.buffer)
       .resize({
-        height: 1080,
-        width: 1440,
+        height,
+        width,
         fit: "cover",
       })
       .jpeg({ quality: 50 })

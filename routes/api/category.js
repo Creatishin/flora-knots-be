@@ -94,9 +94,10 @@ router.get("/", auth, role.check(ROLES.Admin), async (req, res) => {
 
     if (name) filter.name = { $regex: name, $options: "i" };
     if (isActive !== undefined) filter.isActive = isActive;
-
+    let sortOption = { created: -1 };
     const categories = await Category.find(filter)
     .skip(skip)
+    .sort(sortOption)
     .limit(parseInt(limit));
 
     const total = await Category.countDocuments(filter);

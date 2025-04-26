@@ -28,7 +28,7 @@ exports.s3Upload = async (prefix, image) => {
         Bucket: keys.aws.bucketName,
         Key: `${prefix}_${new Date().toISOString().replace(/[:.]/g, "-")}`,
         Body: image.buffer,
-        ContentType: image.mimetype,
+        ContentType: image.mimetype
       };
 
       const s3Upload = await s3bucket.upload(params).promise();
